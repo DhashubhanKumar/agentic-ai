@@ -33,8 +33,9 @@ class Settings(BaseSettings):
     backend_service_key: str = "your_service_key_here"
     
     class Config:
-        env_file = ".env"
+        env_file = "../.env"  # Look in parent directory
         case_sensitive = False
+        extra = "ignore"  # Ignore Next.js variables in shared .env
 
 
 # Global settings instance

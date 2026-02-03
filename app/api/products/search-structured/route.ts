@@ -30,11 +30,13 @@ const DATABASE_SCHEMA = `
 ## Available Query Operations
 You can filter by:
 - price range (lte, gte)
-- brand name (case insensitive contains)
+- brand name (case insensitive contains or equals) - brand is a RELATION, use {brand: {name: {...}}}
 - watch name/model (case insensitive contains)
 - description (case insensitive contains)
 - gender
 - stock availability (gt 0)
+
+**CRITICAL**: DO NOT filter by category or categoryId - it's not a queryable relation in this schema.
 
 Sorting options:
 - price (asc/desc)

@@ -69,7 +69,7 @@ class DecisionMakingAgent:
 
         USER CONTEXT AWARENESS:
         - You will be provided with "User Cart" and "User Wishlist" in the CONTEXT.
-        - Use this to answer questions like "what is in my cart?" or "do I have any Rolex in my wishlist?".
+        - For questions like "what is in my cart?", "show my cart", "what's in my wishlist?" use "direct_response" and cite the cart/wishlist from CONTEXT.
         - When a user asks "add it to cart" and there are NO retrieved products but the item is in the wishlist, refer to the wishlist item.
 
         OUTPUT FORMAT:
