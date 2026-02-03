@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator pyclient {
+  provider = "prisma-client-py"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String?
+  email         String        @unique
+  emailVerified DateTime?
+  image         String?
+  address       String?
+  password      String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  orders        Order[]
+  wishlist      Wishlist[]
+  chatHistory   ChatMessage[]
+  sessions      Session[]
+  cartItems     CartItem[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchId   String
+  watch     Watch    @relation(fields: [watchId], references: [id])
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, watchId])
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  image     String?
+  watches   Watch[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  image     String?
+  watches   Watch[]
+}
+
+model Watch {
+  id            String      @id @default(cuid())
+  name          String
+  brandId       String
+  brand         Brand       @relation(fields: [brandId], references: [id])
+  price         Float
+  originalPrice Float?
+  description   String
+  categoryId    String
+  category      Category    @relation(fields: [categoryId], references: [id])
+  gender        String      @default("Unisex")
+  stock         Int
+  features      Json
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  orderItems    OrderItem[]
+  wishlists     Wishlist[]
+  cartItems     CartItem[]
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  status            String      // pending, processing, shipped, delivered
+  total             Float
+  deliveryAddress   String?
+  phoneNumber       String?
+  estimatedDelivery DateTime?
+  items             OrderItem[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+model OrderItem {
+  id       String @id @default(cuid())
+  orderId  String
+  order    Order  @relation(fields: [orderId], references: [id])
+  watchId  String
+  watch    Watch  @relation(fields: [watchId], references: [id])
+  quantity Int
+  price    Float
+}
+
+model Wishlist {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  watchId String
+  watch   Watch  @relation(fields: [watchId], references: [id])
+  
+  @@unique([userId, watchId])
+}
+
+model ChatMessage {
+  id          String        @id @default(cuid())
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id])
+  sessionId   String
+  session     AgentSession? @relation(fields: [sessionId], references: [sessionId])
+  message     String
+  sender      String        // user or ai
+  timestamp   DateTime      @default(now())
+  sentiment   String?
+  metadata    Json?
+  agentType   String?       // interaction, knowledge, sentiment, etc.
+  confidence  Float?        // AI confidence score
+}
+
+model AgentSession {
+  id                  String       @id @default(cuid())
+  sessionId           String       @unique
+  userId              String?
+  status              String       @default("active") // active, escalated, resolved
+  currentAgent        String?      // human agent ID if escalated
+  conversationSummary String?
+  sentimentScore      Float?       @default(0.0)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  messages            ChatMessage[]
+  escalation          Escalation?
+}
+
+model Escalation {
+  id           String       @id @default(cuid())
+  sessionId    String       @unique
+  session      AgentSession @relation(fields: [sessionId], references: [sessionId])
+  reason       String
+  urgencyLevel String       // low, medium, high
+  assignedTo   String?      // human agent ID
+  handoffData  Json         // Full context package
+  resolvedAt   DateTime?
+  createdAt    DateTime     @default(now())
+}
+
+model KnowledgeBase {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  category  String
+  embedding Json?    // Vector embedding for semantic search
+  createdAt DateTime @default(now())
+}
+

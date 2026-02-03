@@ -1,0 +1,128 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
+
+export async function POST(request: NextRequest) {
+    try {
+        const session = await getSession();
+
+        if (!session) {
+            return NextResponse.json(
+                { error: 'Please login to add to wishlist' },
+                { status: 401 }
+            );
+        }
+
+        const { watchId } = await request.json();
+
+        if (!watchId) {
+            return NextResponse.json(
+                { error: 'Watch ID is required' },
+                { status: 400 }
+            );
+        }
+
+        // Check if already in wishlist
+        const existing = await prisma.wishlist.findFirst({
+            where: {
+                userId: session.userId,
+                watchId,
+            },
+        });
+
+        if (existing) {
+            return NextResponse.json(
+                { error: 'Already in wishlist' },
+                { status: 400 }
+            );
+        }
+
+        const wishlistItem = await prisma.wishlist.create({
+            data: {
+                userId: session.userId,
+                watchId,
+            },
+        });
+
+        return NextResponse.json({ success: true, item: wishlistItem });
+    } catch (error) {
+        console.error('Add to wishlist error:', error);
+        return NextResponse.json(
+            { error: 'Failed to add to wishlist' },
+            { status: 500 }
+        );
+    }
+}
+
+export async function DELETE(request: NextRequest) {
+    try {
+        const session = await getSession();
+
+        if (!session) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
+        const { searchParams } = new URL(request.url);
+        const watchId = searchParams.get('watchId');
+
+        if (!watchId) {
+            return NextResponse.json(
+                { error: 'Watch ID is required' },
+                { status: 400 }
+            );
+        }
+
+        await prisma.wishlist.deleteMany({
+            where: {
+                userId: session.userId,
+                watchId,
+            },
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Remove from wishlist error:', error);
+        return NextResponse.json(
+            { error: 'Failed to remove from wishlist' },
+            { status: 500 }
+        );
+    }
+}
+
+export async function GET() {
+    try {
+        const session = await getSession();
+
+        if (!session) {
+            return NextResponse.json({ items: [] });
+        }
+
+        const wishlistItems = await prisma.wishlist.findMany({
+            where: { userId: session.userId },
+            include: {
+                watch: {
+                    include: {
+                        brand: true,
+                        category: true,
+                    },
+                },
+            },
+        });
+
+        const items = wishlistItems.map((item) => ({
+            id: item.watch.id,
+            name: item.watch.name,
+            price: item.watch.price,
+            brand: item.watch.brand.name,
+            category: item.watch.category.name,
+        }));
+
+        return NextResponse.json({ items });
+    } catch (error) {
+        console.error('Get wishlist error:', error);
+        return NextResponse.json({ items: [] });
+    }
+}
