@@ -51,6 +51,7 @@ class SessionManager:
             "conversation_summary": "",
             "sentiment_score": 0.0,
             "escalation_signals": [],
+            "last_retrieved_products": [],
             "status": "active"
         }
         

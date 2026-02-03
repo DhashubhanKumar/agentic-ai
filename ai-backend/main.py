@@ -1,6 +1,17 @@
 """FastAPI main application with Socket.IO for real-time AI chat"""
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+try:
+    from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+except ImportError:
+    print("\n❌ Error: FastAPI module not found.")
+    print("------------------------------------------------------------")
+    print("It looks like you haven't activated the virtual environment.")
+    print("Please run the following command to start the backend:")
+    print("\n    ./run_backend.sh")
+    print("\nOr manually activate the venv:")
+    print("    source venv/bin/activate && python3 main.py")
+    print("------------------------------------------------------------\n")
+    exit(1)
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, List
 import socketio
@@ -13,11 +24,34 @@ from workflow.graph import agent_workflow
 from utils.session_manager import session_manager
 from utils.vector_store import vector_store
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifecycle events for the application"""
+    # Startup
+    print("🚀 Starting AI Customer Support Backend...")
+    
+    # Initialize session manager
+    await session_manager.initialize()
+    
+    # Load products into vector store (placeholder - would fetch from database)
+    await load_products_to_vector_store()
+    
+    print("✓ Backend ready!")
+    
+    yield
+    
+    # Shutdown
+    await session_manager.close()
+    print("👋 Backend shutdown complete")
+
 # Initialize FastAPI
 app = FastAPI(
     title="AI Customer Support Backend",
     description="Agentic AI-powered customer support with 6 specialized agents",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Configure CORS
@@ -32,7 +66,10 @@ app.add_middleware(
 # Initialize Socket.IO
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins=settings.cors_origins.split(",")
+    cors_allowed_origins='*',
+    logger=True,
+    engineio_logger=True,
+    allow_upgrades=True
 )
 
 # Wrap with Socket.IO ASGI app
@@ -40,27 +77,6 @@ socket_app = socketio.ASGIApp(sio, app)
 
 # Active connections tracking
 active_connections: Dict[str, WebSocket] = {}
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup"""
-    print("🚀 Starting AI Customer Support Backend...")
-    
-    # Initialize session manager
-    await session_manager.initialize()
-    
-    # Load products into vector store (placeholder - would fetch from database)
-    await load_products_to_vector_store()
-    
-    print("✓ Backend ready!")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    await session_manager.close()
-    print("👋 Backend shutdown complete")
 
 
 async def load_products_to_vector_store():
@@ -210,6 +226,11 @@ async def send_message(sid, data):
     message = data.get("message", "").strip()
     user_id = data.get("user_id")
     
+    # Get session for existing user_id if not provided
+    session = await session_manager.get_session(session_id)
+    if not user_id and session:
+        user_id = session.get("user_id")
+    
     if not message:
         return
     
@@ -251,7 +272,8 @@ async def send_message(sid, data):
         # Update session metadata
         await session_manager.update_session(session_id, {
             "sentiment_score": response_data["sentiment"],
-            "status": "escalated" if response_data["escalated"] else "active"
+            "status": "escalated" if response_data["escalated"] else "active",
+            "last_retrieved_products": response_data["metadata"].get("retrieved_products", [])
         })
         
         # Stop typing indicator

@@ -4,16 +4,26 @@ import { getSession } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
     try {
-        const session = await getSession();
+        const body = await request.json();
+        const serviceKey = request.headers.get('X-Backend-Service-Key');
+        const isBackendRequest = serviceKey === process.env.BACKEND_SERVICE_KEY;
 
-        if (!session) {
-            return NextResponse.json(
-                { error: 'Please login to add items to cart' },
-                { status: 401 }
-            );
+        let userId: string;
+
+        if (isBackendRequest && body.userId) {
+            userId = body.userId;
+        } else {
+            const session = await getSession();
+            if (!session) {
+                return NextResponse.json(
+                    { error: 'Please login to add items to cart' },
+                    { status: 401 }
+                );
+            }
+            userId = session.userId;
         }
 
-        const { watchId, quantity = 1 } = await request.json();
+        const { watchId, quantity = 1, operation = "add" } = body;
 
         if (!watchId) {
             return NextResponse.json(
@@ -26,7 +36,7 @@ export async function POST(request: NextRequest) {
         const existingItem = await prisma.cartItem.findUnique({
             where: {
                 userId_watchId: {
-                    userId: session.userId,
+                    userId,
                     watchId,
                 },
             },
@@ -36,7 +46,7 @@ export async function POST(request: NextRequest) {
             // Update quantity
             const updated = await prisma.cartItem.update({
                 where: { id: existingItem.id },
-                data: { quantity: existingItem.quantity + quantity },
+                data: { quantity: operation === "set" ? quantity : existingItem.quantity + quantity },
             });
 
             return NextResponse.json({ success: true, item: updated });
@@ -44,7 +54,7 @@ export async function POST(request: NextRequest) {
             // Create new cart item
             const newItem = await prisma.cartItem.create({
                 data: {
-                    userId: session.userId,
+                    userId,
                     watchId,
                     quantity,
                 },

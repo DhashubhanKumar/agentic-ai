@@ -147,18 +147,31 @@ class AgentWorkflow:
             Response data including AI message and metadata
         """
         from datetime import datetime
+        from utils.session_manager import session_manager
         
-        # Initialize state
+        # Retrieve existing session to get conversation history
+        session = await session_manager.get_session(session_id)
+        
+        # Get existing messages or start fresh
+        existing_messages = session.get("messages", []) if session else []
+        
+        # Add new user message to history
+        new_user_message = {
+            "content": user_message,
+            "sender": "user",
+            "timestamp": datetime.utcnow().isoformat(),
+            "metadata": None
+        }
+        
+        # Combine existing messages with new message for full context
+        all_messages = existing_messages + [new_user_message]
+        
+        # Initialize state with FULL conversation history
         state: ConversationState = {
-            "messages": [{
-                "content": user_message,
-                "sender": "user",
-                "timestamp": datetime.utcnow().isoformat(),
-                "metadata": None
-            }],
+            "messages": all_messages,  # Include all previous messages for context
             "session_id": session_id,
-            "user_id": user_id,
-            "conversation_summary": "",
+            "user_id": user_id or (session.get("user_id") if session else None),
+            "conversation_summary": session.get("conversation_summary", "") if session else "",
             "user_intent": "",
             "extracted_entities": {
                 "watch_model": None,
@@ -167,9 +180,9 @@ class AgentWorkflow:
                 "order_id": None,
                 "category": None
             },
-            "sentiment_score": 0.0,
-            "escalation_signals": [],
-            "retrieved_products": [],
+            "sentiment_score": session.get("sentiment_score", 0.0) if session else 0.0,
+            "escalation_signals": session.get("escalation_signals", []) if session else [],
+            "retrieved_products": session.get("last_retrieved_products", []) if session else [],
             "retrieval_score": 0.0,
             "ai_confidence": 0.0,
             "route": "",

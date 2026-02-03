@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X } from 'lucide-react';
 import { ChatWindow } from './ChatWindow';
 import { socketClient, generateSessionId } from '@/lib/socket';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Message {
     content: string;
@@ -22,10 +23,11 @@ export function ChatWidget() {
     const [handoffData, setHandoffData] = useState<any>(null);
     const [sessionId] = useState(() => generateSessionId());
     const [unreadCount, setUnreadCount] = useState(0);
+    const { user } = useAuth();
 
     useEffect(() => {
         // Connect to Socket.IO
-        const socket = socketClient.connect(sessionId);
+        const socket = socketClient.connect(sessionId, user?.id);
 
         // Listen for session joined
         socketClient.onSessionJoined((data) => {
@@ -68,7 +70,7 @@ export function ChatWidget() {
         return () => {
             socketClient.disconnect();
         };
-    }, [sessionId, isOpen]);
+    }, [sessionId, isOpen, user?.id]);
 
     const handleSendMessage = (message: string) => {
         // Add user message to UI
@@ -80,8 +82,8 @@ export function ChatWidget() {
 
         setMessages((prev) => [...prev, userMessage]);
 
-        // Send to backend
-        socketClient.sendMessage(message);
+        // Send to backend with user ID
+        socketClient.sendMessage(message, user?.id);
     };
 
     const toggleChat = () => {

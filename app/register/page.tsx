@@ -2,53 +2,32 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import GlassCard from "@/components/ui/GlassCard";
 import { Lock, Mail, User } from "lucide-react";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
 
 export default function RegisterPage() {
     const router = useRouter();
+    const { register } = useAuth();
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError(null);
 
-        try {
-            const res = await fetch("/api/register", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    name,
-                    email,
-                    password,
-                }),
-            });
+        const result = await register(email, password, name);
 
-            if (res.ok) {
-                // Auto login after register
-                await signIn("credentials", {
-                    email,
-                    password,
-                    redirect: true,
-                    callbackUrl: "/dashboard",
-                });
-                return; // Let redirect handle it
-            } else {
-                const msg = await res.text();
-                alert(msg);
-            }
-        } catch (error) {
-            console.error(error);
-            alert("Something went wrong");
-        } finally {
+        if (result.success) {
+            router.push("/dashboard");
+        } else {
             setLoading(false);
+            setError(result.error || "Failed to create account");
         }
     };
 
@@ -65,6 +44,12 @@ export default function RegisterPage() {
                         <h1 className="text-3xl font-bold text-white mb-2">Create Account</h1>
                         <p className="text-gray-400">Join the Chronos legacy.</p>
                     </div>
+
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm text-center">
+                            {error}
+                        </div>
+                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="relative">

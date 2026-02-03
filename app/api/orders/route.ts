@@ -16,37 +16,37 @@ export async function GET(request: Request) {
         } else {
             const session = await getSession();
             if (!session) {
-                return NextResponse.json({ items: [] });
+                return NextResponse.json(
+                    { error: 'Unauthorized' },
+                    { status: 401 }
+                );
             }
             userId = session.userId;
         }
 
-        const cartItems = await prisma.cartItem.findMany({
+        const orders = await prisma.order.findMany({
             where: { userId },
             include: {
-                watch: {
+                items: {
                     include: {
-                        brand: true,
-                        category: true,
-                    },
-                },
+                        watch: {
+                            include: {
+                                brand: true
+                            }
+                        }
+                    }
+                }
             },
             orderBy: { createdAt: 'desc' },
+            take: 10 // Limit to recent 10 orders for now
         });
 
-        // Transform to match cart store format
-        const items = cartItems.map((item) => ({
-            id: item.watch.id,
-            name: item.watch.name,
-            price: item.watch.price,
-            brand: item.watch.brand.name,
-            category: item.watch.category.name,
-            quantity: item.quantity,
-        }));
-
-        return NextResponse.json({ items });
+        return NextResponse.json({ orders });
     } catch (error) {
-        console.error('Get cart error:', error);
-        return NextResponse.json({ items: [] });
+        console.error('Get orders error:', error);
+        return NextResponse.json(
+            { error: 'Failed to fetch orders' },
+            { status: 500 }
+        );
     }
 }

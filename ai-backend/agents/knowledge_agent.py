@@ -33,9 +33,73 @@ class KnowledgeRetrievalAgent:
         user_query = latest_message["content"]
         
         try:
+            # Get recent conversation context (last 5 messages)
+            recent_messages = state.get("messages", [])[-5:]
+            conversation_context = "\n".join([
+                f"{msg.get('sender', 'unknown').upper()}: {msg.get('content', '')}"
+                for msg in recent_messages[:-1]  # Exclude current message
+            ])
+            
+            # Use LLM to extract structured search parameters with conversation context
+            extraction_prompt = f"""Analyze this watch search query and extract search parameters as JSON.
+Consider the conversation history to understand context and references.
+
+Conversation History:
+{conversation_context if conversation_context else "No previous conversation"}
+
+Current User Query: "{user_query}"
+
+Extract the following parameters (or infer from context):
+
+1. BRAND: brand name if mentioned (e.g., "Rolex", "Patek Philippe", "Titan", "Casio", "Fossil")
+
+2. MODEL: specific model name if mentioned (e.g., "Submariner", "Daytona", "G-Shock")
+
+3. PRICE FILTERS:
+   - maxPrice: Extract if user says "under X", "below X", "less than X", "cheaper than X"
+   - minPrice: Extract if user says "above X", "over X", "more than X", "at least X"
+   - For "between X and Y": set minPrice=X, maxPrice=Y
+   - For "expensive", "most expensive", "costliest": set intent="luxury"
+   - For "cheapest", "affordable", "cheap": set intent="affordable"
+   - IMPORTANT: Extract actual numbers from queries like "between 10000 and 50000"
+
+4. INTENT: Classify as one of:
+   - "luxury" if mentions expensive, premium, high-end, costliest, or price > 5000
+   - "affordable" if mentions cheap, budget, affordable, cheapest, or price < 1000
+   - "discount" if mentions sale, discount, deal
+   - "general" otherwise
+
+5. FEATURES: Extract if mentioned (e.g., "chronograph", "automatic", "diving", "smartwatch")
+
+CRITICAL RULES:
+- If user says "cheapest", set intent to "affordable"
+- If user says "costliest" or "most expensive", set intent to "luxury"
+- Numbers in queries should be extracted as-is (e.g., "10000" stays 10000, not 10)
+- If referring to previous conversation products, extract their characteristics
+
+Return ONLY valid JSON, no markdown, no explanation:
+{{"brand": "BrandName", "maxPrice": 50000, "minPrice": 10000, "intent": "luxury"}}
+
+If nothing specific found, return: {{"intent": "general"}}"""
+
+            ext_response = await self.llm.ainvoke(extraction_prompt)
+            params_text = ext_response.content.strip()
+            
+            # Clean up markdown code blocks if present
+            if params_text.startswith("```"):
+                params_text = params_text.split("\n", 1)[1]
+                params_text = params_text.rsplit("```", 1)[0]
+            params_text = params_text.strip()
+            
+            # Parse JSON
+            import json
+            search_params = json.loads(params_text)
+            print(f"DEBUG: Extracted search params: {search_params}")
+
             # Retrieve relevant products from database
-            from tools.database_tools import search_products
-            retrieved_docs = await search_products(user_query, limit=5)
+            from tools.database_tools import search_products_with_params
+            retrieved_docs = await search_products_with_params(search_params, limit=10)
+            print(f"DEBUG: Retrieved {len(retrieved_docs)} products")
             
             # Format product information
             product_context = self._format_products(retrieved_docs)
@@ -48,7 +112,8 @@ class KnowledgeRetrievalAgent:
             response = await chain.ainvoke({
                 "retrieved_products": product_context,
                 "user_order_history": order_history,
-                "user_query": user_query
+                "user_query": user_query,
+                "user_details": state.get("user_profile", "Anonymous User")
             })
             
             # Update state

@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import GlassCard from "@/components/ui/GlassCard";
 import { prisma } from "@/lib/prisma";
@@ -7,9 +6,9 @@ import { ArrowLeft, Package, Calendar, MapPin } from "lucide-react";
 import Link from "next/link";
 
 export default async function OrderDetailsPage({ params }: { params: { id: string } }) {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
 
-    if (!session || !session.user?.email) {
+    if (!session) {
         redirect("/login");
     }
 
@@ -32,10 +31,8 @@ export default async function OrderDetailsPage({ params }: { params: { id: strin
         );
     }
 
-    // Verify ownership (simplified, assumes user id is checkable via session email lookup or trusted session)
-    // For now getting user ID from session email again to be safe
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user || user.id !== order.userId) {
+    // Verify ownership
+    if (session.userId !== order.userId) {
         return (
             <div className="container mx-auto px-6 py-24 text-white text-center">
                 Unauthorized.

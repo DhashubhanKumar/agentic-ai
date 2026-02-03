@@ -1,0 +1,90 @@
+/home/dhashu/Downloads/project1/ai-backend/config.py:5: UserWarning: Field 'model_temperature' in 'Settings' conflicts with protected namespace 'model_'.
+
+You may be able to solve this by setting the 'protected_namespaces' configuration to ('settings_',).
+  class Settings(BaseSettings):
+Server initialized for asgi.
+/home/dhashu/Downloads/project1/ai-backend/main.py:48: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+/home/dhashu/Downloads/project1/ai-backend/main.py:62: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("shutdown")
+INFO:     Will watch for changes in these directories: ['/home/dhashu/Downloads/project1/ai-backend']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [17413] using WatchFiles
+/home/dhashu/Downloads/project1/ai-backend/config.py:5: UserWarning: Field 'model_temperature' in 'Settings' conflicts with protected namespace 'model_'.
+
+You may be able to solve this by setting the 'protected_namespaces' configuration to ('settings_',).
+  class Settings(BaseSettings):
+Server initialized for asgi.
+Server initialized for asgi.
+INFO:     Started server process [17432]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+dlQxIJ_EpVVmOjCnAAAA: Sending packet OPEN data {'sid': 'dlQxIJ_EpVVmOjCnAAAA', 'upgrades': [], 'pingTimeout': 20000, 'pingInterval': 25000, 'maxPayload': 1000000}
+dlQxIJ_EpVVmOjCnAAAA: Received request to upgrade to websocket
+INFO:     ('127.0.0.1', 40620) - "WebSocket /socket.io/?EIO=4&transport=websocket" [accepted]
+dlQxIJ_EpVVmOjCnAAAA: Upgrade to websocket successful
+INFO:     connection open
+dlQxIJ_EpVVmOjCnAAAA: Received packet MESSAGE data 0
+dlQxIJ_EpVVmOjCnAAAA: Sending packet MESSAGE data 0{"sid":"BmgGuCfayP0MB84yAAAB"}
+dlQxIJ_EpVVmOjCnAAAA: Received packet MESSAGE data 2["join_session",{"session_id":"session_1770133952538_eu3p2boo8","user_id":"cml6rw2pt0000xeefu6a5m0eb"}]
+received event "join_session" from BmgGuCfayP0MB84yAAAB [/]
+BmgGuCfayP0MB84yAAAB is entering room session_1770133952538_eu3p2boo8 [/]
+emitting event "session_joined" to BmgGuCfayP0MB84yAAAB [/]
+dlQxIJ_EpVVmOjCnAAAA: Sending packet MESSAGE data 2["session_joined",{"session_id":"session_1770133952538_eu3p2boo8","messages":[]}]
+dlQxIJ_EpVVmOjCnAAAA: Sending packet PING data None
+dlQxIJ_EpVVmOjCnAAAA: Received packet PONG data 
+dlQxIJ_EpVVmOjCnAAAA: Sending packet PING data None
+dlQxIJ_EpVVmOjCnAAAA: Received packet PONG data 
+dlQxIJ_EpVVmOjCnAAAA: Sending packet PING data None
+dlQxIJ_EpVVmOjCnAAAA: Received packet PONG data 
+WARNING:  WatchFiles detected changes in 'agents/knowledge_agent.py'. Reloading...
+INFO:     Shutting down
+INFO:     connection closed
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [17432]
+service task canceled
+🚀 Starting AI Customer Support Backend...
+⚠ Redis not configured. Using in-memory storage.
+✓ Loaded 3 products into vector store
+✓ Backend ready!
+✓ Client connected: BmgGuCfayP0MB84yAAAB
+✓ Client BmgGuCfayP0MB84yAAAB joined session session_1770133952538_eu3p2boo8
+✗ Client disconnected: BmgGuCfayP0MB84yAAAB
+👋 Backend shutdown complete
+/home/dhashu/Downloads/project1/ai-backend/config.py:5: UserWarning: Field 'model_temperature' in 'Settings' conflicts with protected namespace 'model_'.
+
+You may be able to solve this by setting the 'protected_namespaces' configuration to ('settings_',).
+  class Settings(BaseSettings):
+Server initialized for asgi.
+Server initialized for asgi.
+INFO:     Started server process [17594]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+_aYD2gdOZ10FYgRkAAAA: Sending packet OPEN data {'sid': '_aYD2gdOZ10FYgRkAAAA', 'upgrades': [], 'pingTimeout': 20000, 'pingInterval': 25000, 'maxPayload': 1000000}
+_aYD2gdOZ10FYgRkAAAA: Received request to upgrade to websocket
+INFO:     ('127.0.0.1', 47616) - "WebSocket /socket.io/?EIO=4&transport=websocket" [accepted]
+_aYD2gdOZ10FYgRkAAAA: Upgrade to websocket successful
+INFO:     connection open
+_aYD2gdOZ10FYgRkAAAA: Received packet MESSAGE data 0
+_aYD2gdOZ10FYgRkAAAA: Sending packet MESSAGE data 0{"sid":"4LEQHUJTpdEhPPbIAAAB"}
+_aYD2gdOZ10FYgRkAAAA: Received packet MESSAGE data 2["join_session",{"session_id":"session_1770133952538_eu3p2boo8","user_id":"cml6rw2pt0000xeefu6a5m0eb"}]
+received event "join_session" from 4LEQHUJTpdEhPPbIAAAB [/]
+4LEQHUJTpdEhPPbIAAAB is entering room session_1770133952538_eu3p2boo8 [/]
+emitting event "session_joined" to 4LEQHUJTpdEhPPbIAAAB [/]
+_aYD2gdOZ10FYgRkAAAA: Sending packet MESSAGE data 2["session_joined",{"session_id":"session_1770133952538_eu3p2boo8","messages":[]}]
+_aYD2gdOZ10FYgRkAAAA: Sending packet PING data None
+_aYD2gdOZ10FYgRkAAAA: Received packet PONG data 
+_aYD2gdOZ10FYgRkAAAA: Sending packet PING data None
+_aYD2gdOZ10FYgRkAAAA: Received packet PONG data 
+INFO:     connection closed

@@ -7,16 +7,28 @@ User Query: {user_message}
 
 Classify into one of these categories:
 1. product_inquiry - Questions about watches, features, availability
-2. order_tracking - Questions about existing orders
-3. account_support - Login, profile, password issues
-4. pricing - Questions about prices, discounts, payment
-5. technical_issue - Website bugs, loading issues
-6. general_chat - Greetings, casual conversation
+2. purchase - Expressing intent to buy, order, or add to cart/wishlist
+3. cart_management - View cart, remove items, clear wishlist
+4. order_tracking - Questions about existing orders
+5. account_support - Login, profile, password issues
+6. pricing - Questions about prices, discounts, payment
+7. technical_issue - Website bugs, loading issues
+8. general_chat - Greetings, casual conversation
 
-Return ONLY the category name without any explanation."""
+Return ONLY the category name without any explanation.
+"cart_management" covers viewing or clearing. "purchase" covers adding or buying."""
 
-# Product Expertise Prompt (Agent 2)
-PRODUCT_EXPERTISE_PROMPT = """You are a luxury watch expert assistant. Answer the customer's question using the provided product information.
+PRODUCT_EXPERTISE_PROMPT = """You are a luxury watch expert assistant. Answer the customer's question using the provided product information and user context.
+
+PRISMA SCHEMA AWARENESS:
+- User (id, name, email, address, orders, cartItems, wishlist)
+- Watch (id, name, brandId, price, description, categoryId, stock, features)
+- CartItem (id, userId, watchId, quantity)
+- Order (id, userId, status, total, items)
+- OrderItem (id, orderId, watchId, quantity, price)
+
+User Details:
+{user_details}
 
 Product Context:
 {retrieved_products}

@@ -27,20 +27,55 @@ class DecisionMakingAgent:
         2. "update_address": Use when user explicitly asks to update their address.
            Arguments: {"new_address": "string"}
            
-        3. "create_order": Use when user wants to place an order or buy items in their cart.
+        3. "add_to_cart": Use when user wants to add a watch to their cart.
+           Arguments: {"watch_id": "string", "quantity": number}
+
+        4. "update_cart_quantity": Use when user wants to change quantity of an item ALREADY in their cart (e.g., "make it 5").
+           Arguments: {"watch_id": "string", "quantity": number}
+           
+        5. "add_to_wishlist": Use when user wants to add a watch to their wishlist.
+           Arguments: {"watch_id": "string"}
+
+        6. "create_order": Use when user wants to place an order or buy items in their cart.
            Arguments: {"confirm": true}
 
-        4. "clear_wishlist": Use when user wants to clear their wishlist.
+        7. "clear_wishlist": Use when user wants to clear their wishlist.
+           Arguments: {}
+
+        8. "clear_cart": Use when user wants to clear their cart.
            Arguments: {}
            
-        5. "escalate_to_human": Use when user is very angry, threatens legal action, or explicitly asks for a human/admin.
+        9. "get_orders": Use when user asks to see their orders or order history.
+           Arguments: {}
+
+        10. "wishlist_to_order": Use when user wants to buy items currently in their wishlist.
+           Arguments: {}
+           
+        11. "wishlist_to_cart": Use when user wants to move items from wishlist to cart.
+           Arguments: {}
+
+        12. "escalate_to_human": Use when user is very angry, threatens legal action, or explicitly asks for a human/admin.
            Arguments: {"reason": "string"}
            
-        6. "direct_response": Use for greetings, small talk, or general questions NOT about specific products.
+        9. "direct_response": Use for greetings, small talk, or general questions NOT about specific products.
            Arguments: {"response": "string"}
            
+        PRISMA SCHEMA AWARENESS:
+        - User (id, name, email, address, orders, cartItems, wishlist)
+        - Watch (id, name, brandId, price, description, categoryId, stock, features)
+        - CartItem (id, userId, watchId, quantity)
+        - Order (id, userId, status, total, items)
+        - OrderItem (id, orderId, watchId, quantity, price)
+
+        USER CONTEXT AWARENESS:
+        - You will be provided with "User Cart" and "User Wishlist" in the CONTEXT.
+        - Use this to answer questions like "what is in my cart?" or "do I have any Rolex in my wishlist?".
+        - When a user asks "add it to cart" and there are NO retrieved products but the item is in the wishlist, refer to the wishlist item.
+
         OUTPUT FORMAT:
         You MUST return a JSON object with "action" and "arguments".
+        When adding or updating products, ALWAYS use the "id" from the RETRIEVED PRODUCTS in the CONTEXT. 
+        If the product is not in the list, ask the user to specify which watch they mean.
         
         Example 1 (Search):
         {
@@ -48,10 +83,10 @@ class DecisionMakingAgent:
             "arguments": {"query": "titan watches discount"}
         }
         
-        Example 2 (Escalation):
+        Example 2 (Add to Cart):
         {
-            "action": "escalate_to_human",
-            "arguments": {"reason": "User requested admin contact regarding damaged item"}
+            "action": "add_to_cart",
+            "arguments": {"watch_id": "cml5fby8n006txfdznk26rhss", "quantity": 1}
         }
         
         Example 3 (Chat):
@@ -69,9 +104,29 @@ class DecisionMakingAgent:
         last_message = messages[-1]["content"] if messages else ""
         
         # Simple prompt construction
-        prompt = f"{self.system_prompt}\n\nUSER MESSAGE: {last_message}\n\nDECISION JSON:"
+        # Simple prompt construction
+        context = f"Retrieved Products: {state.get('retrieved_products', [])}\n"
+        context += f"Conversation Summary: {state.get('conversation_summary', '')}\n"
+        
+        # Inject User Context (Cart, Wishlist)
+        user_id = state.get("user_id")
+        if user_id:
+            from tools.database_tools import get_user_context
+            try:
+                user_context = await get_user_context(user_id)
+                cart_summary = ", ".join([f"{item['quantity']}x {item['name']}" for item in user_context.get('cart', [])]) or "Empty"
+                wishlist_summary = ", ".join([item['name'] for item in user_context.get('wishlist', [])]) or "Empty"
+                
+                context += f"User Cart: {cart_summary}\n"
+                context += f"User Wishlist: {wishlist_summary}\n"
+            except Exception as e:
+                print(f"Error fetching user context: {e}")
+                context += "User Cart: Unknown (Error fetching)\n"
+        
+        prompt = f"{self.system_prompt}\n\nCONTEXT:\n{context}\n\nUSER MESSAGE: {last_message}\n\nDECISION JSON:"
         
         try:
+            print(f"DEBUG Decision Agent: Processing message: '{last_message}'")
             response = await self.llm.ainvoke(prompt)
             content = response.content.replace('```json', '').replace('```', '').strip()
             
@@ -79,30 +134,59 @@ class DecisionMakingAgent:
                 decision = json.loads(content)
             except json.JSONDecodeError:
                 # Try to extract JSON from text if naive parse fails
-                json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                json_match = re.search(r'(\{.*\})', content, re.DOTALL)
                 if json_match:
-                    decision = json.loads(json_match.group())
+                    try:
+                        decision = json.loads(json_match.group(1))
+                    except json.JSONDecodeError:
+                        # Even deeper cleanup - sometimes LLMs put text before/after JSON in a weird way
+                        cleaned = re.sub(r'^.*?(\{.*\}).*$', r'\1', content, flags=re.DOTALL)
+                        decision = json.loads(cleaned)
                 else:
+                    print(f"DEBUG Decision Agent: Failed to parse JSON from: {content}")
                     raise ValueError("Could not parse JSON from response")
 
             action = decision.get("action")
             args = decision.get("arguments", {})
+            print(f"DEBUG Decision Agent: Decided action: {action} with args: {args}")
             
             # Execute Tools (Logic handled here for simplicity in this agent)
             # Dynamic imports to avoid circular deps if any
-            from tools.database_tools import search_products, update_address, clear_wishlist, create_order_from_cart
+            from tools.database_tools import (
+                search_products, update_address, clear_wishlist, clear_cart, 
+                create_order_from_cart, execute_nlp_action, update_cart_quantity,
+                get_user_context, get_user_orders, wishlist_to_order, wishlist_to_cart
+            )
             from tools.email_tools import send_escalation_email
             
             state["route"] = "ai_response" # Default
             
             if action == "search_products":
-                products = await search_products(args.get("query", ""))
-                state["retrieved_products"] = products
+                # Products were already retrieved by KnowledgeAgent, just use them
+                products = state.get("retrieved_products", [])
+                print(f"DEBUG Decision Agent: Using {len(products)} products from state")
                 if products:
                     state["ai_response"] = f"I found {len(products)} timepieces matching your request."
                 else:
                     state["ai_response"] = "I couldn't find any watches matching that description."
                     
+            elif action in ["add_to_cart", "update_cart_quantity", "add_to_wishlist"]:
+                # Use NLP-action endpoint for autonomous execution
+                user_id = state.get("user_id")
+                if user_id:
+                    result = await execute_nlp_action(
+                        user_message=last_message,
+                        user_id=user_id,
+                        conversation_context=messages[-5:],  # Last 5 messages
+                        retrieved_products=state.get("retrieved_products", [])
+                    )
+                    if result.get("success"):
+                        state["ai_response"] = result.get("message", "Done!")
+                    else:
+                        state["ai_response"] = f"I couldn't complete that action: {result.get('error', 'Unknown error')}"
+                else:
+                    state["ai_response"] = "Please login to manage your cart and wishlist."
+
             elif action == "update_address":
                 user_id = state.get("user_id")
                 if user_id:
@@ -129,6 +213,48 @@ class DecisionMakingAgent:
                     state["ai_response"] = "Your wishlist has been cleared."
                 else:
                     state["ai_response"] = "Please login to manage your wishlist."
+
+            elif action == "clear_cart":
+                user_id = state.get("user_id")
+                if user_id:
+                    success = await clear_cart(user_id)
+                    if success:
+                        state["ai_response"] = "I've emptied your cart."
+                    else:
+                        state["ai_response"] = "I encountered an error clearing your cart."
+                else:
+                    state["ai_response"] = "Please login to manage your cart."
+            
+            elif action == "get_orders":
+                user_id = state.get("user_id")
+                if user_id:
+                    orders = await get_user_orders(user_id)
+                    if orders:
+                        order_summary = "\n".join([
+                            f"Order #{o['id'].split('-')[0]} - {o['items'][0]['watch']['name']}... (${o['total']:.2f})"
+                            for o in orders[:5]
+                        ])
+                        state["ai_response"] = f"Here are your recent orders:\n{order_summary}"
+                    else:
+                        state["ai_response"] = "You don't have any past orders."
+                else:
+                    state["ai_response"] = "Please login to view your orders."
+            
+            elif action == "wishlist_to_order":
+                user_id = state.get("user_id")
+                if user_id:
+                    result = await wishlist_to_order(user_id)
+                    state["ai_response"] = result.get("message", "Processed your wishlist order.")
+                else:
+                    state["ai_response"] = "Please login to place an order."
+            
+            elif action == "wishlist_to_cart":
+                user_id = state.get("user_id")
+                if user_id:
+                    result = await wishlist_to_cart(user_id)
+                    state["ai_response"] = result.get("message", "Moved items to cart.")
+                else:
+                    state["ai_response"] = "Please login to manage your list."
                     
             elif action == "escalate_to_human":
                 state["route"] = "escalate"
@@ -150,7 +276,9 @@ class DecisionMakingAgent:
             state["ai_confidence"] = 1.0
                 
         except Exception as e:
+            import traceback
             print(f"Decision error: {e}")
+            traceback.print_exc()
             state["ai_response"] = "I apologize, I'm having temporary trouble processing your request."
             state["route"] = "ai_response"
             

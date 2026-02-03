@@ -20,43 +20,55 @@ export async function POST(req: Request) {
         // 2. Intent Detection
         const hasDiscountIntent = /\b(discount|sale|offer|cheap|deal|promo)\b/.test(lowerQuery);
         const hasLuxuryIntent = /\b(luxury|expensive|premium|exclusive)\b/.test(lowerQuery);
+        const hasAffordableIntent = /\b(affordable|budget|cheap|inexpensive|economical)\b/.test(lowerQuery);
+
+        // Price range detection
+        const priceMatch = lowerQuery.match(/under\s+(\d+)/);
+        const maxPrice = priceMatch ? parseInt(priceMatch[1]) : null;
 
         // Remove intent keywords from search term to avoid matching them in description literal text
         const finalTerm = cleanedQuery
-            .replace(/\b(discount|sale|offer|cheap|deal|promo|luxury|expensive|premium|exclusive|watch|watches)\b/g, '')
+            .replace(/\b(discount|sale|offer|cheap|deal|promo|luxury|expensive|premium|exclusive|watch|watches|affordable|budget|inexpensive|economical|best|seller|popular|under|price)\b/g, '')
             .trim();
 
         // 3. Construct Prisma Query
-        const whereClause: any = {
-            OR: [
+        const whereClause: any = {};
+
+        // Only add text search if we have meaningful terms
+        if (finalTerm.length > 0) {
+            whereClause.OR = [
                 { name: { contains: finalTerm, mode: "insensitive" } },
                 { description: { contains: finalTerm, mode: "insensitive" } },
                 { brand: { name: { contains: finalTerm, mode: "insensitive" } } },
-            ],
-        };
+            ];
+        }
+
+        // Apply price filter if specified
+        if (maxPrice) {
+            whereClause.price = { lte: maxPrice };
+        } else if (hasAffordableIntent) {
+            whereClause.price = { lte: 1000 }; // Affordable = under $1000
+        }
 
         // If explicitly asking for discount, enforce price check
         if (hasDiscountIntent) {
             whereClause.AND = [
-                { originalPrice: { gt: 0 } }, // Has an original price
-                // Ideally: price < originalPrice, but Prisma doesn't support col comparison easily in where without raw query.
-                // We'll filter post-fetch or assume originalPrice > 0 implies a discount context in this schema design.
-                // Or simplified: Just prioritize showing them.
+                { originalPrice: { gt: 0 } },
             ];
         }
 
         // 4. Execution with Sorting
         const products = await prisma.watch.findMany({
-            where: whereClause,
-            take: 10, // Increase limit to allow for post-filtering if needed
+            where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+            take: 10,
             include: {
                 brand: true,
             },
-            orderBy: hasLuxuryIntent
+            orderBy: hasLuxuryIntent || hasAffordableIntent === false && maxPrice === null
                 ? { price: 'desc' }
-                : hasDiscountIntent
+                : hasDiscountIntent || hasAffordableIntent
                     ? { price: 'asc' }
-                    : undefined,
+                    : { createdAt: 'desc' }, // Default: newest first
         });
 
         // 5. Post-processing (refine for discounts if needed)

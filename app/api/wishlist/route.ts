@@ -4,16 +4,26 @@ import { getSession } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
     try {
-        const session = await getSession();
+        const body = await request.json();
+        const serviceKey = request.headers.get('X-Backend-Service-Key');
+        const isBackendRequest = serviceKey === process.env.BACKEND_SERVICE_KEY;
 
-        if (!session) {
-            return NextResponse.json(
-                { error: 'Please login to add to wishlist' },
-                { status: 401 }
-            );
+        let userId: string;
+
+        if (isBackendRequest && body.userId) {
+            userId = body.userId;
+        } else {
+            const session = await getSession();
+            if (!session) {
+                return NextResponse.json(
+                    { error: 'Please login to add to wishlist' },
+                    { status: 401 }
+                );
+            }
+            userId = session.userId;
         }
 
-        const { watchId } = await request.json();
+        const { watchId } = body;
 
         if (!watchId) {
             return NextResponse.json(
@@ -25,7 +35,7 @@ export async function POST(request: NextRequest) {
         // Check if already in wishlist
         const existing = await prisma.wishlist.findFirst({
             where: {
-                userId: session.userId,
+                userId,
                 watchId,
             },
         });
@@ -39,7 +49,7 @@ export async function POST(request: NextRequest) {
 
         const wishlistItem = await prisma.wishlist.create({
             data: {
-                userId: session.userId,
+                userId,
                 watchId,
             },
         });
@@ -92,16 +102,27 @@ export async function DELETE(request: NextRequest) {
     }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const session = await getSession();
+        const { searchParams } = new URL(request.url);
+        const serviceKey = request.headers.get('X-Backend-Service-Key');
+        const isBackendRequest = serviceKey === process.env.BACKEND_SERVICE_KEY;
+        const userIdParam = searchParams.get('userId');
 
-        if (!session) {
-            return NextResponse.json({ items: [] });
+        let userId: string | undefined;
+
+        if (isBackendRequest && userIdParam) {
+            userId = userIdParam;
+        } else {
+            const session = await getSession();
+            if (!session) {
+                return NextResponse.json({ items: [] });
+            }
+            userId = session.userId;
         }
 
         const wishlistItems = await prisma.wishlist.findMany({
-            where: { userId: session.userId },
+            where: { userId },
             include: {
                 watch: {
                     include: {

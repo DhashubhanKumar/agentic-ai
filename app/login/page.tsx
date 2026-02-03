@@ -1,33 +1,32 @@
 "use client";
 
-import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import GlassCard from "@/components/ui/GlassCard";
 import { Lock, Mail } from "lucide-react";
 import Link from "next/link";
 
 export default function LoginPage() {
     const router = useRouter();
-    const [email, setEmail] = useState("demo@chronos.com");
-    const [password, setPassword] = useState("password");
+    const { login } = useAuth();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError(null);
 
-        const result = await signIn("credentials", {
-            email,
-            password,
-            redirect: false,
-        });
+        const result = await login(email, password);
 
-        if (result?.ok) {
+        if (result.success) {
             router.push("/dashboard");
         } else {
             setLoading(false);
-            alert("Invalid credentials. Try demo@chronos.com / password");
+            setError(result.error || "Invalid email or password");
         }
     };
 
@@ -45,6 +44,12 @@ export default function LoginPage() {
                         <p className="text-gray-400">Sign in to access your collection.</p>
                     </div>
 
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm text-center">
+                            {error}
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="relative">
                             <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
@@ -53,6 +58,7 @@ export default function LoginPage() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="Email Address"
+                                required
                                 className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-secondary-gold focus:ring-1 focus:ring-secondary-gold transition-all"
                             />
                         </div>
@@ -64,6 +70,7 @@ export default function LoginPage() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Password"
+                                required
                                 className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-secondary-gold focus:ring-1 focus:ring-secondary-gold transition-all"
                             />
                         </div>
@@ -76,23 +83,6 @@ export default function LoginPage() {
                             {loading ? "Signing In..." : "Sign In"}
                         </button>
                     </form>
-
-                    <div className="mt-8">
-                        <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-transparent text-gray-400">Or continue with</span>
-                        </div>
-                        <div className="mt-4 grid grid-cols-2 gap-4">
-                            <button
-                                onClick={() => signIn("google")}
-                                className="bg-white/5 border border-white/10 hover:bg-white/10 py-3 rounded-xl flex items-center justify-center text-white transition-colors"
-                            >
-                                <span className="font-medium">Google</span>
-                            </button>
-                            <button className="bg-white/5 border border-white/10 hover:bg-white/10 py-3 rounded-xl flex items-center justify-center text-white transition-colors">
-                                <span className="font-medium">Apple</span>
-                            </button>
-                        </div>
-                    </div>
 
                     <div className="mt-8 text-center">
                         <p className="text-gray-400 text-sm">

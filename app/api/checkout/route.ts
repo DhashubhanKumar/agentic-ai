@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getSession();
 
-        if (!session?.user?.email) {
+        if (!session) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
@@ -18,13 +17,11 @@ export async function POST(req: Request) {
             return new NextResponse("No items in checkout", { status: 400 });
         }
 
-        const userEmail = session.user.email;
-
         // Use transaction to ensure order and items are created together
         const order = await prisma.$transaction(async (tx) => {
             // 1. Get User
             const user = await tx.user.findUnique({
-                where: { email: userEmail }
+                where: { id: session.userId }
             });
 
             if (!user) {

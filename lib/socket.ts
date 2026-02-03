@@ -13,12 +13,15 @@ class SocketClient {
 
         this.sessionId = sessionId;
 
+        console.log('🔌 Connecting to AI backend at:', SOCKET_URL);
         this.socket = io(SOCKET_URL, {
-            transports: ['websocket', 'polling'],
+            transports: ['websocket'],
+            upgrade: false,
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            reconnectionAttempts: 5,
+            reconnectionAttempts: 10,
+            timeout: 20000,
         });
 
         this.socket.on('connect', () => {
@@ -26,12 +29,17 @@ class SocketClient {
             this.socket?.emit('join_session', { session_id: sessionId, user_id: userId });
         });
 
-        this.socket.on('disconnect', () => {
-            console.log('✗ Disconnected from AI backend');
+        this.socket.on('disconnect', (reason) => {
+            console.log('✗ Disconnected from AI backend. Reason:', reason);
         });
 
-        this.socket.on('connect_error', (error: Error) => {
-            console.error('Connection error:', error);
+        this.socket.on('connect_error', (error: any) => {
+            console.error('Socket.IO Connection error details:', {
+                message: error?.message || 'Unknown message',
+                description: error?.description || 'No description',
+                type: error?.type || 'Unknown type',
+                errorObject: error
+            });
         });
 
         return this.socket;

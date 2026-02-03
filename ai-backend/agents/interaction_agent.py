@@ -45,7 +45,9 @@ class WebsiteInteractionAgent:
                 "account_support",
                 "pricing",
                 "technical_issue",
-                "general_chat"
+                "general_chat",
+                "purchase",
+                "cart_management"
             ]
             
             if intent not in valid_intents:
@@ -56,7 +58,7 @@ class WebsiteInteractionAgent:
             state["agent_type"] = "interaction"
             
             # Determine initial route
-            if intent in ["product_inquiry", "pricing"]:
+            if intent in ["product_inquiry", "pricing", "purchase", "cart_management"]:
                 state["route"] = "knowledge"
             elif intent == "general_chat":
                 state["route"] = "direct_response"
