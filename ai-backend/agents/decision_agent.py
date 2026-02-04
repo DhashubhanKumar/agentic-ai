@@ -57,6 +57,9 @@ class DecisionMakingAgent:
         12. "escalate_to_human": Use when user is very angry, threatens legal action, or explicitly asks for a human/admin.
            Arguments: {"reason": "string"}
            
+        13. "request_consultation": Use when user seems confused, frustrated (LOW/MEDIUM), or says "I don't know".
+           Arguments: {"topic": "string"}
+
         9. "direct_response": Use for greetings, small talk, or general questions NOT about specific products.
            Arguments: {"response": "string"}
            
@@ -71,6 +74,10 @@ class DecisionMakingAgent:
         - You will be provided with "User Cart" and "User Wishlist" in the CONTEXT.
         - For questions like "what is in my cart?", "show my cart", "what's in my wishlist?" use "direct_response" and cite the cart/wishlist from CONTEXT.
         - When a user asks "add it to cart" and there are NO retrieved products but the item is in the wishlist, refer to the wishlist item.
+
+        FRUSTRATION HANDLING:
+        - If Frustration Level is HIGH: You MUST use "escalate_to_human".
+        - If Frustration Level is MEDIUM or LOW/CONFUSED: You should use "request_consultation" to guide them.
 
         OUTPUT FORMAT:
         You MUST return a JSON object with "action" and "arguments".
@@ -107,6 +114,7 @@ class DecisionMakingAgent:
         # Simple prompt construction
         context = f"Retrieved Products: {state.get('retrieved_products', [])}\n"
         context += f"Conversation Summary: {state.get('conversation_summary', '')}\n"
+        context += f"Frustration Level: {state.get('frustration_level', 'low')}\n"
         
         # Inject User Context (Cart, Wishlist)
         user_id = state.get("user_id")
@@ -273,6 +281,11 @@ class DecisionMakingAgent:
                 # Explicit handler for escalation action from LLM
                 state["route"] = "escalate"
                 state["ai_response"] = "I understand your frustration. I'm connecting you with a human agent."
+
+            elif action == "request_consultation":
+                state["route"] = "consultation"
+                state["consultation_active"] = True
+                state["ai_response"] = "I see you're looking for something specific. Let me help you find the perfect watch."
             
             else:
                 # direct_response

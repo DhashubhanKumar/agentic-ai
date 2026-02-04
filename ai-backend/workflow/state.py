@@ -36,6 +36,7 @@ class ConversationState(TypedDict):
     
     # Sentiment and friction
     sentiment_score: float  # -1 to 1
+    frustration_level: str  # low, medium, high
     escalation_signals: List[str]
     
     # Knowledge retrieval

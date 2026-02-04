@@ -100,7 +100,8 @@ class AgentWorkflow:
             {
                 "ai_response": END,
                 "ai_response_with_offer": END,
-                "escalate": "handoff"
+                "escalate": "handoff",
+                "consultation": "consultant"
             }
         )
         
@@ -142,12 +143,14 @@ class AgentWorkflow:
     def _route_decision(
         self,
         state: ConversationState
-    ) -> Literal["ai_response", "ai_response_with_offer", "escalate"]:
+    ) -> Literal["ai_response", "ai_response_with_offer", "escalate", "consultation"]:
         """Route based on decision agent output"""
         route = state.get("route", "ai_response")
         
         if route == "escalate":
             return "escalate"
+        elif route == "consultation":
+            return "consultation"
         elif route == "ai_response_with_offer":
             # Append offer to AI response
             current_response = state.get("ai_response", "")

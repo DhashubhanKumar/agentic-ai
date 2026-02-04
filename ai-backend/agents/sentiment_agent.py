@@ -55,6 +55,7 @@ class SentimentDetectionAgent:
             
             # Update state
             state["sentiment_score"] = sentiment_data.get("sentiment_score", 0.0)
+            state["frustration_level"] = sentiment_data.get("frustration_level", "low")
             state["agent_type"] = "sentiment"
             
             # Detect friction signals
