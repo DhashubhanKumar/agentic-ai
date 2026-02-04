@@ -52,6 +52,8 @@ class SessionManager:
             "sentiment_score": 0.0,
             "escalation_signals": [],
             "last_retrieved_products": [],
+            "consultation_active": False,
+            "collected_preferences": {},
             "status": "active"
         }
         

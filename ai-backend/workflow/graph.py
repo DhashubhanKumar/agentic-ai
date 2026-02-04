@@ -10,6 +10,7 @@ from agents.memory_agent import create_memory_agent
 from agents.sentiment_agent import create_sentiment_agent
 from agents.decision_agent import create_decision_agent
 from agents.handoff_agent import create_handoff_agent
+from agents.consultant_agent import create_consultant_agent
 from config import settings
 
 
@@ -39,7 +40,9 @@ class AgentWorkflow:
             self.primary_llm,
             settings.ai_confidence_threshold
         )
+
         self.handoff_agent = create_handoff_agent(self.primary_llm)
+        self.consultant_agent = create_consultant_agent(self.primary_llm)
         
         # Build workflow graph
         self.graph = self._build_graph()
@@ -57,13 +60,36 @@ class AgentWorkflow:
         workflow.add_node("sentiment", self._sentiment_node)
         workflow.add_node("decision", self._decision_node)
         workflow.add_node("handoff", self._handoff_node)
+        workflow.add_node("consultant", self._consultant_node)
         
         # Set entry point
         workflow.set_entry_point("interaction")
         
         # Define sequential flow
         workflow.add_edge("interaction", "memory")
-        workflow.add_edge("memory", "knowledge")
+        # workflow.add_edge("memory", "knowledge") # Replaced by conditional edge
+        
+        # Conditional routing after memory (to Consultation or Knowledge)
+        workflow.add_conditional_edges(
+            "memory",
+             self._route_memory,
+             {
+                 "consultation": "consultant",
+                 "escalation": "handoff",
+                 "standard": "knowledge"
+             }
+        )
+        
+        # Conditional routing from consultant
+        workflow.add_conditional_edges(
+            "consultant",
+             self._route_consultant,
+             {
+                 "search_products": "knowledge",
+                 "continue_consultation": END
+             }
+        )
+        
         workflow.add_edge("knowledge", "sentiment")
         workflow.add_edge("sentiment", "decision")
         
@@ -108,6 +134,10 @@ class AgentWorkflow:
     async def _handoff_node(self, state: ConversationState) -> ConversationState:
         """Human Handoff Agent node"""
         return await self.handoff_agent.process(state)
+        
+    async def _consultant_node(self, state: ConversationState) -> ConversationState:
+        """Consultant Agent node"""
+        return await self.consultant_agent.process(state)
     
     def _route_decision(
         self,
@@ -128,6 +158,24 @@ class AgentWorkflow:
             return "ai_response_with_offer"
         else:
             return "ai_response"
+            
+    def _route_memory(self, state: ConversationState) -> Literal["consultation", "escalation", "standard"]:
+        """Route based on intent or active consultation"""
+        intent = state.get("user_intent", "")
+        is_active = state.get("consultation_active", False)
+        
+        if intent == "human_handoff":
+            return "escalation"
+        elif intent == "consultation" or is_active:
+            return "consultation"
+        return "standard"
+
+    def _route_consultant(self, state: ConversationState) -> Literal["search_products", "continue_consultation"]:
+        """Route from consultant (search or reply)"""
+        route = state.get("route", "")
+        if route == "search":
+            return "search_products"
+        return "continue_consultation"
     
     async def process_message(
         self,
@@ -187,7 +235,11 @@ class AgentWorkflow:
             "ai_confidence": 0.0,
             "route": "",
             "ai_response": "",
-            "agent_type": ""
+            "agent_type": "",
+            "consultation_active": session.get("consultation_active", False) if session else False,
+            "consultation_step": "start",
+            "collected_preferences": session.get("collected_preferences", {}) if session else {},
+            "metadata": {}
         }
         
         # Run through workflow
@@ -205,7 +257,9 @@ class AgentWorkflow:
                 "metadata": {
                     "retrieved_products": result.get("retrieved_products", []),
                     "escalation_signals": result.get("escalation_signals", []),
-                    "handoff_data": result.get("metadata", {}).get("handoff_data")
+                    "handoff_data": result.get("metadata", {}).get("handoff_data"),
+                    "consultation_active": result.get("consultation_active", False),
+                    "collected_preferences": result.get("collected_preferences", {})
                 }
             }
             

@@ -43,3 +43,6 @@ Thumbs.db
 session.txt
 test-cookies.txt
 dev.db
+
+# Generated Emails
+ai-backend/mails/

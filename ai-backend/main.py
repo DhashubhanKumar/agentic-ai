@@ -273,7 +273,9 @@ async def send_message(sid, data):
         await session_manager.update_session(session_id, {
             "sentiment_score": response_data["sentiment"],
             "status": "escalated" if response_data["escalated"] else "active",
-            "last_retrieved_products": response_data["metadata"].get("retrieved_products", [])
+            "last_retrieved_products": response_data["metadata"].get("retrieved_products", []),
+            "consultation_active": response_data["metadata"].get("consultation_active", False),
+            "collected_preferences": response_data["metadata"].get("collected_preferences", {})
         })
         
         # Stop typing indicator

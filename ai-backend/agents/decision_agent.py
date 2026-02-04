@@ -168,7 +168,11 @@ class DecisionMakingAgent:
                 if products:
                     state["ai_response"] = f"I found {len(products)} timepieces matching your request."
                 else:
-                    state["ai_response"] = "I couldn't find any watches matching that description."
+                    # Graceful fallback for no results
+                    state["ai_response"] = (
+                        "I couldn't find any watches matching that exact description efficiently. "
+                        "Could you try broadening your search? For example, try searching for just the brand or a style like 'Sport' or 'Dress'."
+                    )
                     
             elif action in ["add_to_cart", "update_cart_quantity", "add_to_wishlist"]:
                 # Use NLP-action endpoint for autonomous execution
@@ -230,11 +234,20 @@ class DecisionMakingAgent:
                 if user_id:
                     orders = await get_user_orders(user_id)
                     if orders:
-                        order_summary = "\n".join([
-                            f"Order #{o['id'].split('-')[0]} - {o['items'][0]['watch']['name']}... (${o['total']:.2f})"
-                            for o in orders[:5]
-                        ])
-                        state["ai_response"] = f"Here are your recent orders:\n{order_summary}"
+
+                        try:
+                            order_lines = []
+                            for o in orders[:5]:
+                                date_str = o.get('createdAt', '').split('T')[0]
+                                total = f"${o.get('total', 0):.2f}"
+                                items_desc = ", ".join([f"{i['quantity']}x {i.get('watch', {}).get('name', 'Watch')}" for i in o.get('items', [])])
+                                order_lines.append(f"**Order #{o['id'].split('-')[0]}** ({date_str}) - {total}\n   *Items: {items_desc}*")
+                            
+                            order_summary = "\n\n".join(order_lines)
+                            state["ai_response"] = f"Here are your recent orders:\n\n{order_summary}"
+                        except Exception as e:
+                            print(f"Error formatting orders: {e}")
+                            state["ai_response"] = "Here are your orders (raw data): " + str(orders[:3])
                     else:
                         state["ai_response"] = "You don't have any past orders."
                 else:
@@ -255,19 +268,12 @@ class DecisionMakingAgent:
                     state["ai_response"] = result.get("message", "Moved items to cart.")
                 else:
                     state["ai_response"] = "Please login to manage your list."
-                    
+            
             elif action == "escalate_to_human":
+                # Explicit handler for escalation action from LLM
                 state["route"] = "escalate"
-                state["ai_response"] = "I understand your frustration. I have forwarded your request to our administration team at dhashupersonal@gmail.com. They will contact you shortly."
-                
-                # Send mock email
-                transcript = "\n".join([f"{m['sender']}: {m['content']}" for m in messages])
-                await send_escalation_email(
-                        state.get("user_id", "anonymous_user"),
-                        args.get("reason", "User escalation"),
-                        transcript
-                )
-                
+                state["ai_response"] = "I understand your frustration. I'm connecting you with a human agent."
+            
             else:
                 # direct_response
                 state["ai_response"] = args.get("response", "How can I help you regarding our luxury watches?")
@@ -277,9 +283,15 @@ class DecisionMakingAgent:
                 
         except Exception as e:
             import traceback
-            print(f"Decision error: {e}")
-            traceback.print_exc()
-            state["ai_response"] = "I apologize, I'm having temporary trouble processing your request."
+            error_msg = str(e)
+            print(f"Decision error: {error_msg}")
+            
+            if "Rate limit" in error_msg or "429" in error_msg:
+                 state["ai_response"] = "I apologize, but I'm currently at maximum capacity (Rate Limit Reached). Please try again in about 15 minutes."
+            else:
+                 traceback.print_exc()
+                 state["ai_response"] = "I apologize, I'm having temporary trouble processing your request."
+            
             state["route"] = "ai_response"
             
         return state

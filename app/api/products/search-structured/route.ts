@@ -89,6 +89,7 @@ IMPORTANT RULES FOR QUERY GENERATION:
 6. SPECIAL CASES:
    - If no filters at all: return {where: {}, orderBy: {createdAt: "desc"}}
    - Always ensure stock > 0 is implied (add {stock: {gt: 0}} to AND clause)
+   - For JSON features filter: use {features: {path: ["$"], contains: {featureName: true}}}
 
 Return ONLY valid JSON (no markdown, no explanation outside the reasoning field):
 {
@@ -109,8 +110,9 @@ Output: {"where": {"AND": [{"brand": {"name": {"equals": "Rolex", "mode": "insen
 
         const completion = await groq.chat.completions.create({
             messages: [{ role: "user", content: nlpPrompt }],
-            model: "llama-3.3-70b-versatile",
-            temperature: 0.1,
+            model: "llama-3.1-8b-instant",
+            temperature: 0.0,
+            response_format: { type: "json_object" }
         });
 
         let queryStructure;
@@ -118,11 +120,13 @@ Output: {"where": {"AND": [{"brand": {"name": {"equals": "Rolex", "mode": "insen
             let responseText = completion.choices[0]?.message?.content || "{}";
 
             // Clean markdown code blocks
-            if (responseText.includes("```")) {
-                responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "");
+            // Robust JSON extraction
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                queryStructure = JSON.parse(jsonMatch[0]);
+            } else {
+                throw new Error("No JSON found in response");
             }
-
-            queryStructure = JSON.parse(responseText.trim());
             console.log("Generated Query Structure:", JSON.stringify(queryStructure, null, 2));
         } catch (e) {
             console.error("Failed to parse LLM response:", e);

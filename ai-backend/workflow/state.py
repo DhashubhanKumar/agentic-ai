@@ -49,3 +49,11 @@ class ConversationState(TypedDict):
     # Response generation
     ai_response: str
     agent_type: str  # Current agent handling the query
+    
+    # Consultation/Guided Discovery
+    consultation_active: bool
+    consultation_step: str
+    collected_preferences: Dict[str, Any]
+    
+    # Generic Metadata
+    metadata: Optional[Dict[str, Any]]

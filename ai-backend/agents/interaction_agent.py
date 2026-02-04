@@ -47,7 +47,10 @@ class WebsiteInteractionAgent:
                 "technical_issue",
                 "general_chat",
                 "purchase",
-                "cart_management"
+                "purchase",
+                "cart_management",
+                "consultation",
+                "human_handoff"
             ]
             
             if intent not in valid_intents:
@@ -58,7 +61,23 @@ class WebsiteInteractionAgent:
             state["agent_type"] = "interaction"
             
             # Determine initial route
-            if intent in ["product_inquiry", "pricing", "purchase", "cart_management"]:
+            if intent == "human_handoff":
+                # Route directly to decision agent with escalation instruction?
+                # Or maybe add a 'handoff' route directly?
+                # The graph might not have a direct edge from interaction -> handoff?
+                # Let's check graph.py. Actually, usually we route via decision or knowledge.
+                # But for now, let's route to 'decision' but set a flag, or add a special handling.
+                # Actually, simpler: Route to DecisionAgent but set intent clearly.
+                # DecisionAgent has "escalate_to_human" tool.
+                state["route"] = "knowledge" # Default fallback, but let's try to handle it better.
+                # Actually, let's see where DecisionAgent gets its input.
+                # Ideally we want to go straight to Handoff. 
+                # Does interaction -> handoff edge exist?
+                # Let's assume we route to 'decision' and let it decide to escalate based on intent.
+                state["route"] = "decision" # We need to ensure graph has this edge
+            elif intent == "consultation":
+                state["route"] = "consultation"
+            elif intent in ["product_inquiry", "pricing", "purchase", "cart_management"]:
                 state["route"] = "knowledge"
             elif intent == "general_chat":
                 state["route"] = "direct_response"

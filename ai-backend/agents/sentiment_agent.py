@@ -39,12 +39,15 @@ class SentimentDetectionAgent:
         conversation_summary = state.get("conversation_summary", "")
         
         try:
+            # Format recent history (last 10 messages)
+            recent_msgs = state["messages"][-10:]
+            history_text = "\n".join([f"{m['sender']}: {m['content']}" for m in recent_msgs])
+            
             # Analyze sentiment using Groq
             chain = self.prompt | self.llm
             response = await chain.ainvoke({
                 "user_message": user_message,
-                "previous_sentiment": previous_sentiment,
-                "conversation_summary": conversation_summary
+                "chat_history": history_text
             })
             
             # Parse JSON response
@@ -97,8 +100,9 @@ class SentimentDetectionAgent:
         """Detect friction signals in conversation"""
         signals = []
         
+        from config import settings
         # Check sentiment score
-        if state["sentiment_score"] < -0.3:
+        if state["sentiment_score"] < settings.escalation_sentiment_threshold:
             signals.append("negative_sentiment")
         
         # Check for frustration keywords

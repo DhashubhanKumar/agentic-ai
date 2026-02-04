@@ -73,14 +73,31 @@ class HumanHandoffAgent:
             # Update state
             state["agent_type"] = "handoff"
             state["ai_response"] = (
-                "I'm connecting you with a human agent who can better assist you. "
-                "They'll have full context of our conversation. Please wait a moment..."
+                "I apologize for the trouble. I've escalated your issue to our human support team. "
+                "A specialist will review your case and contact you via email within 24 hours."
             )
             
             # Store handoff data in state metadata
-            if "metadata" not in state:
+            if state.get("metadata") is None:
                 state["metadata"] = {}
             state["metadata"]["handoff_data"] = handoff_data
+            
+            # Send Escalation Email
+            from tools.email_tools import send_escalation_email
+            
+            # Construct a comprehensive summary for the email
+            email_summary = (
+                f"Issue: {handoff_summary.get('issue_summary')}\n"
+                f"Urgency: {handoff_data['urgency_level']}\n"
+                f"Sentiment Score: {sentiment_data['current_sentiment']}\n"
+                f"AI Recommendation: {handoff_summary.get('suggested_approach')}"
+            )
+            
+            await send_escalation_email(
+                user_email=state.get("user_id", "Unknown User"), 
+                issue_summary=email_summary, 
+                chat_transcript=chat_history
+            )
             
             print(f"✓ Handoff package created, urgency: {handoff_data['urgency_level']}")
             

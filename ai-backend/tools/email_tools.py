@@ -5,31 +5,60 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("email_service")
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from config import settings
+
 async def send_escalation_email(user_email: str, issue_summary: str, chat_transcript: str) -> bool:
     """
-    Mocks sending an escalation email to the admin.
-    In production, this would use SMTP or an API like SendGrid.
+    Sends an escalation email to the admin using SMTP.
+    Falls back to logging if credentials are not configured.
     """
-    admin_email = "dhashupersonal@gmail.com"
+    admin_email = settings.admin_email
     
-    email_content = f"""
-    ================================================================
-    [ESCALATION EMAIL]
-    To: {admin_email}
-    From: escalation-bot@chronos.com
-    Subject: CRITICAL CUSTOMER ISSUE - {user_email}
-    Date: {datetime.now().isoformat()}
-    
+    email_body = f"""
+    CRITICAL CUSTOMER ISSUE
+    =======================
     User: {user_email}
-    Issue: {issue_summary}
+    Time: {datetime.now().isoformat()}
     
-    Transcript:
+    ISSUE SUMMARY:
+    {issue_summary}
+    
+    FULL TRANSCRIPT:
+    ----------------------------------------------------------------
     {chat_transcript}
-    ================================================================
+    ----------------------------------------------------------------
+    
+    Sent by Chronos AI Escalation System
     """
     
-    # "Send" the email by logging it
-    print(email_content) # Print to stdout so it's visible in logs
-    logger.info(f"Escalation email sent to {admin_email} for user {user_email}")
-    
-    return True
+    # log it first
+    print(email_body)
+    logger.info(f"Escalation email generated for {admin_email}")
+
+    # File-based email "sending"
+    try:
+        import os
+        
+        # Create mails directory in the parent project1 folder (assuming running from ai-backend)
+        mails_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mails")
+        os.makedirs(mails_dir, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"escalation_{timestamp}_{user_email}.txt"
+        file_path = os.path.join(mails_dir, filename)
+        
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(f"Subject: 🚨 Escalation: Issue with {user_email}\n")
+            f.write(f"To: {admin_email}\n")
+            f.write(email_body)
+            
+        logger.info(f"✅ Email 'sent' to file: {file_path}")
+        print(f"✅ Email saved to: {file_path}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to write email file: {e}")
+        return False

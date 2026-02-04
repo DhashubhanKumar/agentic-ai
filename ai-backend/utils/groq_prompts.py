@@ -14,9 +14,11 @@ Classify into one of these categories:
 6. pricing - Questions about prices, discounts, payment
 7. technical_issue - Website bugs, loading issues
 8. general_chat - Greetings, casual conversation
+9. consultation - Use this when the user seems undecided, is asking for open-ended advice, or needs help narrowing down options. Focus on the user's *need for guidance* rather than specific keywords. Examples: "I need a watch for my dad", "What's good for diving?", "I'm overwhelmed by the choices", "Help me pick".
+10. human_handoff - Use when user explicitly asks for a human, support agent, or expresses anger/frustration. Examples: "speak to human", "get me an agent", "I am angry", "frustrated".
 
 Return ONLY the category name without any explanation.
-"cart_management" covers viewing or clearing. "purchase" covers adding or buying."""
+"cart_management" covers viewing or clearing. "purchase" covers adding or buying. "consultation" is for when the user needs a guide. "human_handoff" is for escalation."""
 
 PRODUCT_EXPERTISE_PROMPT = """You are a luxury watch expert assistant. Answer the customer's question using the provided product information and user context.
 
@@ -64,17 +66,22 @@ Create a concise summary including:
 Summary (max 100 words):"""
 
 # Sentiment Analysis Prompt (Agent 4)
-SENTIMENT_ANALYSIS_PROMPT = """Analyze the sentiment and frustration level in this customer message.
+SENTIMENT_ANALYSIS_PROMPT = """Analyze the user's emotional state based on the ENTIRE conversation history.
+Look for:
+1. Cumulative frustration (user repeating themselves, getting impatient).
+2. Explicit signs of anger ("useless", "stupid", "bad", "human").
+3. Unresolved issues (AI failing to give a good answer multiple times).
 
-Message: {user_message}
-Previous Sentiment: {previous_sentiment}
-Context: {conversation_summary}
+Chat History:
+{chat_history}
+
+Current Message: {user_message}
 
 Provide:
-1. Sentiment Score (-1 to 1): 
+1. Sentiment Score (-1.0 to 1.0): -1 is very angry, 0 is neutral, 1 is happy.
 2. Frustration Level (low/medium/high):
-3. Escalation Recommended (yes/no):
-4. Reason:
+3. Escalation Recommended (yes/no): Recommend YES if there is any sign of frustration or if the AI is failing.
+4. Reason: specific evidence from history.
 
 Format your response as JSON with keys: sentiment_score, frustration_level, escalation_recommended, reason"""
 
