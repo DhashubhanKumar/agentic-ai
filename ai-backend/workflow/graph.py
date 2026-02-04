@@ -11,6 +11,7 @@ from agents.sentiment_agent import create_sentiment_agent
 from agents.decision_agent import create_decision_agent
 from agents.handoff_agent import create_handoff_agent
 from agents.consultant_agent import create_consultant_agent
+from agents.refund_agent import create_refund_agent
 from config import settings
 
 
@@ -43,6 +44,7 @@ class AgentWorkflow:
 
         self.handoff_agent = create_handoff_agent(self.primary_llm)
         self.consultant_agent = create_consultant_agent(self.primary_llm)
+        self.refund_agent = create_refund_agent(self.primary_llm)
         
         # Build workflow graph
         self.graph = self._build_graph()
@@ -61,6 +63,7 @@ class AgentWorkflow:
         workflow.add_node("decision", self._decision_node)
         workflow.add_node("handoff", self._handoff_node)
         workflow.add_node("consultant", self._consultant_node)
+        workflow.add_node("refund", self._refund_node)
         
         # Set entry point
         workflow.set_entry_point("interaction")
@@ -69,12 +72,13 @@ class AgentWorkflow:
         workflow.add_edge("interaction", "memory")
         # workflow.add_edge("memory", "knowledge") # Replaced by conditional edge
         
-        # Conditional routing after memory (to Consultation or Knowledge)
+        # Conditional routing after memory (to Consultation, Refund, or Knowledge)
         workflow.add_conditional_edges(
             "memory",
              self._route_memory,
              {
                  "consultation": "consultant",
+                 "refund": "refund",
                  "escalation": "handoff",
                  "standard": "knowledge"
              }
@@ -87,6 +91,18 @@ class AgentWorkflow:
              {
                  "search_products": "knowledge",
                  "continue_consultation": END
+             }
+        )
+        
+        # Conditional routing from refund
+        workflow.add_conditional_edges(
+            "refund",
+             self._route_refund,
+             {
+                 "continue_refund": END,
+                 "approved": END,
+                 "denied": END,
+                 "escalate": "handoff"
              }
         )
         
@@ -140,6 +156,10 @@ class AgentWorkflow:
         """Consultant Agent node"""
         return await self.consultant_agent.process(state)
     
+    async def _refund_node(self, state: ConversationState) -> ConversationState:
+        """Refund Agent node"""
+        return await self.refund_agent.process(state)
+    
     def _route_decision(
         self,
         state: ConversationState
@@ -162,14 +182,17 @@ class AgentWorkflow:
         else:
             return "ai_response"
             
-    def _route_memory(self, state: ConversationState) -> Literal["consultation", "escalation", "standard"]:
-        """Route based on intent or active consultation"""
+    def _route_memory(self, state: ConversationState) -> Literal["consultation", "refund", "escalation", "standard"]:
+        """Route based on intent or active consultation/refund"""
         intent = state.get("user_intent", "")
-        is_active = state.get("consultation_active", False)
+        is_consultation_active = state.get("consultation_active", False)
+        is_refund_active = state.get("refund_active", False)
         
         if intent == "human_handoff":
             return "escalation"
-        elif intent == "consultation" or is_active:
+        elif intent == "refund_request" or is_refund_active:
+            return "refund"
+        elif intent == "consultation" or is_consultation_active:
             return "consultation"
         return "standard"
 
@@ -179,6 +202,17 @@ class AgentWorkflow:
         if route == "search":
             return "search_products"
         return "continue_consultation"
+    
+    def _route_refund(self, state: ConversationState) -> Literal["continue_refund", "approved", "denied", "escalate"]:
+        """Route from refund agent based on status"""
+        route = state.get("route", "")
+        if route == "refund_approved":
+            return "approved"
+        elif route == "refund_denied":
+            return "denied"
+        elif route == "escalate":
+            return "escalate"
+        return "continue_refund"
     
     async def process_message(
         self,
@@ -242,6 +276,8 @@ class AgentWorkflow:
             "consultation_active": session.get("consultation_active", False) if session else False,
             "consultation_step": "start",
             "collected_preferences": session.get("collected_preferences", {}) if session else {},
+            "refund_active": session.get("refund_active", False) if session else False,
+            "refund_collected_info": session.get("refund_collected_info", {}) if session else {},
             "metadata": {}
         }
         
@@ -262,7 +298,10 @@ class AgentWorkflow:
                     "escalation_signals": result.get("escalation_signals", []),
                     "handoff_data": result.get("metadata", {}).get("handoff_data"),
                     "consultation_active": result.get("consultation_active", False),
-                    "collected_preferences": result.get("collected_preferences", {})
+                    "collected_preferences": result.get("collected_preferences", {}),
+                    "refund_active": result.get("refund_active", False),
+                    "refund_collected_info": result.get("refund_collected_info", {}),
+                    "refund_data": result.get("metadata", {}).get("refund_data")
                 }
             }
             

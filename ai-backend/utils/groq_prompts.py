@@ -15,10 +15,11 @@ Classify into one of these categories:
 7. technical_issue - Website bugs, loading issues
 8. general_chat - Greetings, casual conversation
 9. consultation - Use this when the user seems undecided, is asking for open-ended advice, or needs help narrowing down options. Focus on the user's *need for guidance* rather than specific keywords. Examples: "I need a watch for my dad", "What's good for diving?", "I'm overwhelmed by the choices", "Help me pick".
-10. human_handoff - Use when user explicitly asks for a human, support agent, or expresses anger/frustration. Examples: "speak to human", "get me an agent", "I am angry", "frustrated".
+10. refund_request - Use when user wants to return a product, get a refund, or send something back. Keywords: "refund", "return", "send back", "money back", "not satisfied", "return policy", "exchange".
+11. human_handoff - Use when user explicitly asks for a human, support agent, or expresses anger/frustration. Examples: "speak to human", "get me an agent", "I am angry", "frustrated".
 
 Return ONLY the category name without any explanation.
-"cart_management" covers viewing or clearing. "purchase" covers adding or buying. "consultation" is for when the user needs a guide. "human_handoff" is for escalation."""
+"cart_management" covers viewing or clearing. "purchase" covers adding or buying. "consultation" is for when the user needs a guide. "refund_request" is for returns/refunds. "human_handoff" is for escalation."""
 
 PRODUCT_EXPERTISE_PROMPT = """You are a luxury watch expert assistant. Answer the customer's question using the provided product information and user context.
 

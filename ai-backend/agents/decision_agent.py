@@ -140,18 +140,37 @@ class DecisionMakingAgent:
             
             try:
                 decision = json.loads(content)
-            except json.JSONDecodeError:
-                # Try to extract JSON from text if naive parse fails
-                json_match = re.search(r'(\{.*\})', content, re.DOTALL)
+            except json.JSONDecodeError as e:
+                print(f"DEBUG Decision Agent: Initial JSON parse failed: {e}")
+                # Try to extract FIRST valid JSON object only
+                json_match = re.search(r'(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})', content, re.DOTALL)
                 if json_match:
                     try:
-                        decision = json.loads(json_match.group(1))
-                    except json.JSONDecodeError:
-                        # Even deeper cleanup - sometimes LLMs put text before/after JSON in a weird way
-                        cleaned = re.sub(r'^.*?(\{.*\}).*$', r'\1', content, flags=re.DOTALL)
-                        decision = json.loads(cleaned)
+                        potential_json = json_match.group(1)
+                        # Find the first complete JSON object
+                        brace_count = 0
+                        end_pos = 0
+                        for i, char in enumerate(potential_json):
+                            if char == '{':
+                                brace_count += 1
+                            elif char == '}':
+                                brace_count -= 1
+                                if brace_count == 0:
+                                    end_pos = i + 1
+                                    break
+                        
+                        if end_pos > 0:
+                            first_json = potential_json[:end_pos]
+                            decision = json.loads(first_json)
+                            print(f"DEBUG Decision Agent: Extracted first JSON object successfully")
+                        else:
+                            raise ValueError("Could not find complete JSON object")
+                    except (json.JSONDecodeError, ValueError) as parse_err:
+                        print(f"DEBUG Decision Agent: Failed to extract JSON: {parse_err}")
+                        print(f"DEBUG Decision Agent: Content was: {content[:200]}...")
+                        raise ValueError("Could not parse JSON from response")
                 else:
-                    print(f"DEBUG Decision Agent: Failed to parse JSON from: {content}")
+                    print(f"DEBUG Decision Agent: No JSON pattern found in: {content[:200]}...")
                     raise ValueError("Could not parse JSON from response")
 
             action = decision.get("action")

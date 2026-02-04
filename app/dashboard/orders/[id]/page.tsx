@@ -5,15 +5,18 @@ import { prisma } from "@/lib/prisma";
 import { ArrowLeft, Package, Calendar, MapPin } from "lucide-react";
 import Link from "next/link";
 
-export default async function OrderDetailsPage({ params }: { params: { id: string } }) {
+export default async function OrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const session = await getSession();
 
     if (!session) {
         redirect("/login");
     }
 
+    // Await params for Next.js 15+
+    const { id } = await params;
+
     const order = await prisma.order.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             items: {
                 include: {

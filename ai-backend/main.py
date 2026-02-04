@@ -275,7 +275,9 @@ async def send_message(sid, data):
             "status": "escalated" if response_data["escalated"] else "active",
             "last_retrieved_products": response_data["metadata"].get("retrieved_products", []),
             "consultation_active": response_data["metadata"].get("consultation_active", False),
-            "collected_preferences": response_data["metadata"].get("collected_preferences", {})
+            "collected_preferences": response_data["metadata"].get("collected_preferences", {}),
+            "refund_active": response_data["metadata"].get("refund_active", False),
+            "refund_collected_info": response_data["metadata"].get("refund_collected_info", {})
         })
         
         # Stop typing indicator

@@ -54,6 +54,8 @@ class SessionManager:
             "last_retrieved_products": [],
             "consultation_active": False,
             "collected_preferences": {},
+            "refund_active": False,
+            "refund_collected_info": {},
             "status": "active"
         }
         

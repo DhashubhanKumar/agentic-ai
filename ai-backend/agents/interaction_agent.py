@@ -47,9 +47,9 @@ class WebsiteInteractionAgent:
                 "technical_issue",
                 "general_chat",
                 "purchase",
-                "purchase",
                 "cart_management",
                 "consultation",
+                "refund_request",
                 "human_handoff"
             ]
             
@@ -77,6 +77,8 @@ class WebsiteInteractionAgent:
                 state["route"] = "decision" # We need to ensure graph has this edge
             elif intent == "consultation":
                 state["route"] = "consultation"
+            elif intent == "refund_request":
+                state["route"] = "refund"
             elif intent in ["product_inquiry", "pricing", "purchase", "cart_management"]:
                 state["route"] = "knowledge"
             elif intent == "general_chat":

@@ -7,6 +7,7 @@ import { Trash2, ShoppingCart } from "lucide-react";
 import { useCartStore } from "@/store/useCartStore";
 import Link from "next/link";
 import { getWatchPlaceholder } from "@/lib/imageUtils";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function WishlistPage() {
     const { items, removeItem, setItems } = useWishlistStore();
@@ -28,9 +29,53 @@ export default function WishlistPage() {
         fetchWishlist();
     }, [setItems]);
 
-    const handleAddToCart = (item: any) => {
-        addToCart(item);
-        alert("Added to cart!");
+    const handleAddToCart = async (item: any) => {
+        try {
+            // Call the API to add to cart
+            const response = await fetch('/api/cart/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    watchId: item.id,
+                    quantity: 1
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Update local store
+                addToCart(item);
+                toast.success(`${item.name} added to cart!`, {
+                    duration: 3000,
+                    position: 'top-right',
+                    style: {
+                        background: '#10b981',
+                        color: '#fff',
+                        fontWeight: 'bold',
+                    },
+                });
+            } else {
+                toast.error(data.error || 'Failed to add to cart', {
+                    duration: 3000,
+                    position: 'top-right',
+                    style: {
+                        background: '#ef4444',
+                        color: '#fff',
+                    },
+                });
+            }
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            toast.error('Something went wrong. Please try again.', {
+                duration: 3000,
+                position: 'top-right',
+                style: {
+                    background: '#ef4444',
+                    color: '#fff',
+                },
+            });
+        }
     };
 
     if (items.length === 0) {
@@ -54,6 +99,7 @@ export default function WishlistPage() {
 
     return (
         <div className="min-h-screen bg-black text-white pt-32 pb-16">
+            <Toaster />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <h1 className="text-4xl font-bold mb-8">My Wishlist</h1>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -56,5 +56,9 @@ class ConversationState(TypedDict):
     consultation_step: str
     collected_preferences: Dict[str, Any]
     
+    # Refund/Return Processing
+    refund_active: bool
+    refund_collected_info: Dict[str, Any]
+    
     # Generic Metadata
     metadata: Optional[Dict[str, Any]]
