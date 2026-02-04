@@ -37,6 +37,9 @@
 - **Prisma Accelerate**: Database connection pooling and caching
 - **Next.js API Routes**: RESTful endpoints for cart, wishlist, orders, products
 
+> [!NOTE]
+> For a deep dive into the agent logic, state management, and tool execution, see the [Detailed Agent Workflow](file:///home/dhashu/Downloads/project1/AGENT_WORKFLOW.md).
+
 ---
 
 ## 🔄 End-to-End Workflow
